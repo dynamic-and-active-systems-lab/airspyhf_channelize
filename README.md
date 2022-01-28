@@ -1,11 +1,11 @@
-# airspy_channelize
+# airspyhf_channelize
 This code allows incoming SDR data to be channelized and provided to other processes via UDP. 
 
 The inital goal of this development was to enable complex IQ data streaming from an AirspyHF+ SDR to be brought into Matlab for processing. The resulting code should work though for any process that needs to receive channelized data streams. This software sits between the incoming high sample rate data and processes running on a machine that might want access to one or more channels at a lower sample rate. This code was developed in Matlab and converted to C using Matlab Code. Some of the Matlab functions developed here has some interesting methods necessitated by the restrictions on system object in Matlab when using Matlab Code. 
 
 ## Basic Operation
 ### Starting the program
-When compiled to an executable two arguments are needed: raw sample rate (from the SDR) and the desired decimation factor. The raw sample rate must be a supported sample rate from the AirspyHF+: 192, 256, 384, 456 768, or 912 KSPS. Supported decimation factors are []. These were selected, as they are the unique divisors of the supported sample rates. An example call in terminal to start this program would be 
+When compiled to an executable two arguments are needed: raw sample rate (from the SDR) and the desired decimation factor. The raw sample rate must be a supported sample rate from the AirspyHF+: 192, 256, 384, 456 768, or 912 KSPS. Supported decimation factors are 2, 4, 10, 12, 16, 24, 32, 48, 64, 80, 96, 100, 120, 128, 192, and 256. These were selected, as they are a subset of the unique divisors of the supported sample rates. An example call in terminal to start this program would be 
 
 `airspyhfchannelizermain 192000 48`
 
@@ -26,4 +26,72 @@ Pause: `echo -e -n '\x00'| netcat -u localhost 10001`
 
 Kill:  `echo -e -n '\xFF'| netcat -u localhost 10001`
 
+### Receiving channelized data
 
+Because the channelized data is served via UDP port, the outputs are can be used by any program capable of UDP data. The example code below is written in Matlab and provided in the codebase. Note that this function is pulling data from the first channel of the decimated output. Also, this function has a maximum message size of 1025, which is the IQ message length (1024) plus the frame timestamp (1). In the while loop, the time stamp is extracted and converted with the custome Matlab function singlecomplex2double().
+
+Note about channel frequencies: Because the number of channels (`nc`) and decimation factor are the same, the center frequencies of the channels range from `[-Fs/nc*floor(nc/2), Fs/nc*floor(nc/2)]` if nc is odd and `[-Fs/2, , Fs/nc*floor(nc/2)]` if nc is even. In both cases the frequency steps are `Fs/nc`.
+
+```
+%% HARDCODED ARGUMENTS
+rawSampleRate     = 192000;
+decimationFactor  = 48;
+channelSelected   = 1;
+
+%supportedSampleRates      = [192, 256, 384, 456 768, or 912]*1000;
+%supportedDecimateFactors  = [2, 4, 10, 12, 16, 24, 32, 48, 64, 80, 96, 100, 120, 128, 192, 256];
+
+%% INITIALIZE VARIABLES
+samplesPerChannelFrame = 1024;
+channelSampleRate = rawSampleRate/decimationFactor;
+
+if mod(decimationFactor,2)==0
+  centerFreqs = [-Fs/2 : Fs/decimationFactor : Fs/decimationFactor*floor(nc/2)]
+else 
+  centerFreqs = [-Fs/decimationFactor*floor(decimationFactor/2) :...
+                  Fs/decimationFactor :...
+                  Fs/decimationFactor*floor(decimationFactor/2)];
+end
+
+channelFrequency = centerFreqs(channelSelected);
+
+%% SETUP UDP RECEIVER OBJECT
+udpReceivePort = 20000+channelSelected-1;
+obj.udpReceive = dsp.UDPReceiver('RemoteIPAddress','0.0.0.0',...
+                                 'LocalIPPort',udpReceivePort,...
+                                 'ReceiveBufferSize',2^18,...
+                                 'MaximumMessageLength',1025,...
+                                 'MessageDataType','single',...
+                                 'IsMessageComplex',true); 
+setup(obj.udpReceive);
+
+%%SETUP SPECTRUM ANALYZER
+scope           = dsp.SpectrumAnalyzer('SampleRate',channelSampleRate,...
+                                       'PlotAsTwoSidedSpectrum',true,...
+                                       'ViewType','Spectrogram');
+scope.ViewType      = 'Spectrogram';
+scope.FFTLength     = samplesPerChannelFrame;
+scope.WindowLength  = samplesPerChannelFrame;
+scope.FrequencyResolutionMethod = 'WindowLength';
+scope.CenterFrequency = channelFrequency;
+scope.FrequencySpan   = 'Span and center frequency';
+scope.TimeSpanSource  = 'Property';
+scope.TimeSpan        = 10;
+
+
+%% RECEIVE THE DATA
+scope([]); %Open the scope
+while 1
+  x = obj.udpReceive();
+
+  if ~isempty(x1)
+    theTimePosix  = singlecomplex2double(x(1));
+    currTime      = datetime(theTimePosix,'ConvertFrom','posixtime','Format','hh:m:ss.SSSSSS');
+    x(1)          = []; %Remove timestamp
+    scope(x)
+  end
+  
+end             
+                
+release(scope)  
+```
