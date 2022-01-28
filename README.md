@@ -18,7 +18,7 @@ The data coming into the channelizer progra  should be served on local port 1000
 
 `/usr/local/bin/airspyhf_rx -f 91.7 -m on -a 192000 -r stdout -g on -l high -t 0 | netcat -u localhost 10000`
 
-This requires the installation of [airspyhf](https://github.com/airspy/airspyhf). Installation instructions for this can be found [here](https://uavrt.nau.edu). This pipes data from airspyhf_rx to netcat, which then sends the data via UDP to port 10000. The `airspychannelizermain` function requires single precision complex data with frame lengths of 128 complex samples.
+This requires the installation of [airspyhf](https://github.com/airspy/airspyhf). Installation instructions for this can be found [below](https://github.com/dynamic-and-active-systems-lab/airspyhf_channelize#installing-airspyhf_rx). This pipes data from airspyhf_rx to netcat, which then sends the data via UDP to port 10000. The `airspychannelizermain` function requires single precision complex data with frame lengths of 128 complex samples.
 
 ### Controlling opreration
 After running these two commands the program will start up but will initially be in an idle stat. There are three states of operation: 1) Idle/Pause 2) Running 3) Dead/Killed. The program accepts commands to transition between states from local port 10001. Transmitting a 1 will start the channelization and output. Transmitting a 0 will pause the operation and put the program into a idle state. Transmitting a -1 will terminate the program. In a separate terminal window, transmit the start, pause, or kill commands with commands: 
@@ -98,3 +98,27 @@ end
                 
 release(scope)  
 ```
+
+## Installing airspyhf_rx
+[Airspyhf](https://airspy.com/airspy-hf-discovery/) is useful for manual control of the [AirspyHF+ Dual Port](https://airspy.com/airspy-hf-plus/) and [AirspyHF+ Discovery](https://airspy.com/airspy-hf-discovery/) software defined radios. To install this you'll to do a few things first:
+1. [Ensure homebrew is installed](https://brew.sh/) and run brew doctor to see if any errors come up 
+2. Ensure homebrew is updated by running the following command in a terminal window brew update 
+3. Need wget: run the following command in a terminal window brew install wget 
+4. Need cmake: run the following command in a terminal window brew install cmake 
+5. Need libusb: run the following command in a terminal window brew install libusb
+
+To install `airspyhf`, open a terminal directory where you want airspyhf-master directory downloaded to. You don't need to keep this directory after installing. Now, run the commands below for building and installing. 
+```
+wget https://github.com/airspy/airspyhf/archive/master.zip
+unzip master.zip
+cd airspyhf-master
+mkdir build
+cd build
+export CMAKE_PREFIX_PATH=/usr/local/Cellar/libusb/1.0.24/include/libusb-1.0
+cmake ../ -DINSTALL_UDEV_RULES=ON
+make
+sudo make install
+```
+That's it. It should be installed. 
+
+All of the instructions here are the same as those found in the repo under "[How to build the host software on Linux](https://github.com/airspy/airspyhf#build-host-software-on-linux)" except for the export command. CMake doesn't know how to find libusb, so we run the export command to tell it where it is. It's a temp fix in that if you run CMake for this build process again, you'll have to do the same thing. But you would only need to run CMake once theoretically, since we are building/installing and then leaving it be. 
