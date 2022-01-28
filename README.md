@@ -9,7 +9,7 @@ The development of this code was funded via [National Science Foundation grant n
 ### Starting the program
 When compiled to an executable two arguments are needed: raw sample rate (from the SDR) and the desired decimation factor. The raw sample rate must be a supported sample rate from the AirspyHF+: 192, 256, 384, 456, 768, or 912 KSPS. Supported decimation factors are 2, 4, 10, 12, 16, 24, 32, 48, 64, 80, 96, 100, 120, 128, 192, and 256. These were selected, as they are a subset of the unique divisors of the supported sample rates. An example call in terminal to start this program would be 
 
-`airspyhfchannelizermain 192000 48`
+`airspyhf_channelize 192000 48`
 
 This would setup the program for incoming data and 192 KSPS that will be decimated by 48 to a sample rate of 4 KSPS. The output data will be served on local ports starting at 20000 and ending at one less than the number of channels (decimation factor). Once started, the program sits in an idle mode until it is commanded (see below) to begin processing data. It is critical that this program is started starting the stream of incoming data, otherwise 'Connection refused' messages will appear after the next step.
 
