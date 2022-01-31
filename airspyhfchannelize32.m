@@ -57,15 +57,13 @@ function []= airspyhfchannelize32(rawSampleRate) %#codegen
 %                           0   Stop (pause) data reception/transmission
 %                               and flush the buffer
 %                           -1  Terminate the function
-%       20000:20*** Send ports for serving channelized UDP data. Port
-%                   numbers increase with frequeny. Because the channel
-%                   number and decimation are the same, the frequency
-%                   ranges are +/-Fs/nc*floor(nc/2), where nc is the number
-%                   of channels, if nc is odd and -Fs/2 < fc <
-%                   Fs/nc*floor(nc/2) if nc is even. In each cse the
-%                   frequency steps are Fs/nc. This was determined by using
-%                   the centerFrequencies.m function on example channelizer
-%                   objects. The max port number is equal to 
+%       20000:20*** Send ports for serving channelized UDP data. The
+%                   center frequency of the channel for port 20000 is the
+%                   center frequency of the incoming data. Subsequent port
+%                   correspond to the increasing channel numbers and
+%                   frequency, eventually wrapping to negative frequencies
+%                   above Fs/2. See notes about channel center frequencies
+%                   below.The max port number is equal to 
 %                   20000+numberofchannels-1
 %
 %
@@ -80,7 +78,31 @@ function []= airspyhfchannelize32(rawSampleRate) %#codegen
 %
 %
 %
-%Notes:  An Airspy HF+ connected to the machine via USB is received using
+%Notes:   
+%       ABOUT CHANNEL CENTER FREQUENCIES:
+%       Matlab provides the centerFrequencies function that accepts a
+%       channelizer object and a sample rate, and then specifies the
+%       center frequencies of the associated channel. This list however is
+%       centered at zero and provides negative frequencies. For example a
+%       channelizer with Fs = 48000 and a decimation factor of 3 would
+%       report center frequencies [-24000 -12000 0 12000]. If the fvtool is
+%       used on this channelizer (with the legend turned on) the center
+%       frequencies would be [0 12000 -24000 -12000] for filteres 1-4. The
+%       shifting here reflects a inconsistency in Matlab's channel
+%       reporting. The channelizer outputs follow the latter order, and as
+%       such, so to do the UDP port outputs in this function. 
+%       Because the  number of chanels and the decimation are the same, 
+%       the frequency of these channels are -Fs/nc*floor(nc/2)<fc<Fs/2, 
+%       (where nc is the number of channels), if nc is odd. For even nc
+%       -Fs/2 < fc < Fs/2-Fs/nc. In both cases the frequency steps are 
+%       Fs/nc. This was determined by using the centerFrequencies.m 
+%       function on example channelizer objects. If using the
+%       centerFrequencies output the circshift command can be used to get
+%       the correct order of channel frequency. For example:
+%       circshift(centerFrequencies(channizerObject,48000),ceil(numChannels/2))
+%
+%       ABOUT INCOMING DATA:
+%       An Airspy HF+ connected to the machine via USB is received using
 %       the airspyhf_rx executable. Using the program with the '-r stdout'
 %       option allows the data to be piped to another program with the |
 %       character. Netcat can then be use to provide the data to this

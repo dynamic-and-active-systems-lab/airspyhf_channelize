@@ -1,11 +1,6 @@
-%This script received channelizer IQ data from airspyhf_channelizer and
-%displays a spectrogram of the data. It also demodulates the FM
-%broadcast within the channel. Demodulated audio is played over the defaul
-%audio device. 
-
 %% HARDCODED ARGUMENTS
-rawSampleRate     = 912000;
-decimationFactor  = 4;
+rawSampleRate     = 384000;
+decimationFactor  = 2;
 numChannels       = decimationFactor;
 channelSelected   = 1;
 
@@ -20,20 +15,15 @@ if mod(decimationFactor,2)==0
   centerFreqs = -rawSampleRate/2:...
                  rawSampleRate/decimationFactor:...
                  rawSampleRate/2-rawSampleRate/decimationFactor;
-                 %Easier to read:-Fs/2:Fs/DF:Fs/2-Fs/DF
-
+                  %-Fs/2:Fs/DF:Fs/2-Fs/DF
 else 
   centerFreqs = -rawSampleRate/(decimationFactor)*floor(decimationFactor/2):...
                  rawSampleRate/(decimationFactor):...
                  rawSampleRate/2;        
-                 %Easier to read: [-Fs/(DF)*floor(DF/2):Fs/(DF):Fs/2]
+              %[-Fs/(DF)*floor(DF/2):Fs/(DF):Fs/2]
 end
 
-%Account for channel order mismatch between channelizer ouptut and
-%centerFrequencies function
-centerFreqs = circshift(centerFreqs, ceil(decimationFactor/2));
-
-channelFrequency = centerFreqs(channelSelected)
+channelFrequency = centerFreqs(channelSelected);
 
 %% SETUP UDP RECEIVER OBJECT
 udpReceivePort = 20000+channelSelected-1;
@@ -50,18 +40,22 @@ scope           = dsp.SpectrumAnalyzer('SampleRate',channelSampleRate,...
                                        'PlotAsTwoSidedSpectrum',true,...
                                        'ViewType','Spectrogram');
 scope.ViewType      = 'Spectrogram';
+%scope.FFTLength     = samplesPerChannelFrame;
+%scope.WindowLength  = samplesPerChannelFrame;
+%scope.FrequencyResolutionMethod = 'WindowLength';
+%scope.CenterFrequency = channelFrequency;
+%scope.FrequencySpan   = 'Span and center frequency';
+ scope.Span            = channelSampleRate;
+% scope.TimeSpanSource  = 'Property';
+% scope.TimeSpan        = 10;
 
 
-targetAudioSampleRate = 48000; 
-%This line help set the audio rate so that the audio decimation rate is a
-%factor of the samplesPerChannelFrame. 
-actualAudioSampleRate = 1/samplesPerChannelFrame*rawSampleRate*2*(floor(samplesPerChannelFrame/(rawSampleRate*2/targetAudioSampleRate)));
 fmbDemod = comm.FMBroadcastDemodulator( ...
-    'AudioSampleRate',actualAudioSampleRate, ...
+    'AudioSampleRate',48000, ...
     'SampleRate',channelSampleRate,'PlaySound',true);%,'FrequencyDeviation',channelSampleRate/3);
 
 %% RECEIVE THE DATA
-
+%scope(complex(zeros(1024,1))); %Open the scope
 disp('ran scope')
 while 1
   x = obj.udpReceive();
