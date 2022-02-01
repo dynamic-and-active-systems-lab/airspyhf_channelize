@@ -18,7 +18,7 @@ The data coming into the channelizer progra  should be served on local port 1000
 
 `/usr/local/bin/airspyhf_rx -f 91.7 -m on -a 912000 -r stdout -g on -l high -t 0 | netcat -u localhost 10000`
 
-This requires the installation of [airspyhf](https://github.com/airspy/airspyhf). Installation instructions for this can be found [below](https://github.com/dynamic-and-active-systems-lab/airspyhf_channelize#installing-airspyhf_rx). This pipes data from airspyhf_rx to netcat, which then sends the data via UDP to port 10000. The `airspychannelizermain` function requires single precision complex data with frame lengths of 128 complex samples.
+This requires the installation of [airspyhf](https://github.com/airspy/airspyhf). Installation instructions for this can be found [below](https://github.com/dynamic-and-active-systems-lab/airspyhf_channelize#installing-airspyhf_rx). This pipes data from airspyhf_rx to netcat, which then sends the data via UDP to port 10000. The `airspyhf_channelize` function requires single precision complex data with frame lengths of 128 complex samples.
 
 ### Controlling opreration
 After running these two commands the program will start up but will initially be in an idle stat. There are three states of operation: 1) Idle/Pause 2) Running 3) Dead/Killed. The program accepts commands to transition between states from local port 10001. Transmitting a 1 will start the channelization and output. Transmitting a 0 will pause the operation and put the program into a idle state. Transmitting a -1 will terminate the program. In a separate terminal window, transmit the start, pause, or kill commands with commands: 
