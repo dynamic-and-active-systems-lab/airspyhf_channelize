@@ -146,6 +146,7 @@ udpServePorts       = 20000:20000+maxNumChannels-1;%10000:10039;
 
 %Incoming Data Variables
 rawFrameLength      = 128;
+rawFrameTime        = rawFrameLength/rawSampleRate;
 bytesPerSample      = 8;
 supportedSampleRates = [912 768 456 384 256 192]*1000;
 
@@ -229,6 +230,8 @@ while 1 %<= %floor((recordingDurationSec-1)*rawSampleRate/rawFrameLength)
                     end
                     toc
                 end
+            else
+                pause(rawFrameTime/2);
             end
             
             cmdReceived  = udpCommand();
