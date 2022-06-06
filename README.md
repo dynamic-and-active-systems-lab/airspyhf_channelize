@@ -61,4 +61,4 @@ sudo make install
 ```
 That's it. It should be installed. 
 
-All of the instructions here are the same as those found in the repo under "[How to build the host software on Linux](https://github.com/airspy/airspyhf#build-host-software-on-linux)" except for the export command. CMake doesn't know how to find libusb, so we run the export command to tell it where it is. It's a temp fix in that if you run CMake for this build process again, you'll have to do the same thing. But you would only need to run CMake once theoretically, since we are building/installing and then leaving it be. 
+All of the instructions here are the same as those found in the repo under "[How to build the host software on Linux](https://github.com/airspy/airspyhf#how-to-build-the-host-software-on-linux)" except for the export command. CMake doesn't know how to find libusb, so we run the export command to tell it where it is. It's a temp fix in that if you run CMake for this build process again, you'll have to do the same thing. But you would only need to run CMake once theoretically, since we are building/installing and then leaving it be. 
