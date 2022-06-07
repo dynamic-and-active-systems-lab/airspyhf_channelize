@@ -141,8 +141,6 @@ if ~ismember(decimationFactor,allDivisors256Max)
     error(['UAV-RT: Decimation factor not supported. Valid values are: ', num2str(allDivisors256Max.')] ) 
 end
 
-
-
 if decimationFactor == 2
     airspyhfchannelize2(rawSampleRate);
 elseif decimationFactor == 4
