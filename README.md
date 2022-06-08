@@ -66,7 +66,16 @@ Note about channel frequencies: Matlab provides the centerFrequencies function t
 
 
 ## Installing airspyhf_rx
-[Airspyhf](https://airspy.com/airspy-hf-discovery/) is useful for manual control of the [AirspyHF+ Dual Port](https://airspy.com/airspy-hf-plus/) and [AirspyHF+ Discovery](https://airspy.com/airspy-hf-discovery/) software defined radios. To install this you'll to do a few things first:
+[Airspyhf](https://airspy.com/airspy-hf-discovery/) is useful for manual control of the [AirspyHF+ Dual Port](https://airspy.com/airspy-hf-plus/) and [AirspyHF+ Discovery](https://airspy.com/airspy-hf-discovery/) software defined radios. 
+
+#### Linux installation 
+
+The instrunctions for installing airspyhf on Linux can be found in the airspyhf repo under "[How to build the host software on Linux](https://github.com/airspy/airspyhf#how-to-build-the-host-software-on-linux)". This will include the dependencies necessary for the installation and use of airspyhf. 
+
+#### macOS installation 
+
+To install this on macOS, you'll need to do a few things first:
+
 1. [Ensure homebrew is installed](https://brew.sh/) and run brew doctor to see if any errors come up 
 2. Ensure homebrew is updated by running the following command in a terminal window brew update 
 3. Need wget: run the following command in a terminal window brew install wget 
