@@ -82,7 +82,7 @@ To install this on macOS, you'll need to do a few things first:
 4. Need cmake: run the following command in a terminal window brew install cmake 
 5. Need libusb: run the following command in a terminal window brew install libusb
 
-To install `airspyhf`, open a terminal directory where you want airspyhf-master directory downloaded to. You don't need to keep this directory after installing. Now, run the commands below for building and installing. 
+To install airspyhf, open a terminal directory where you want airspyhf-master directory downloaded to. You don't need to keep this directory after installing. Now, run the commands below for building and installing. 
 ```
 wget https://github.com/airspy/airspyhf/archive/master.zip
 unzip master.zip
