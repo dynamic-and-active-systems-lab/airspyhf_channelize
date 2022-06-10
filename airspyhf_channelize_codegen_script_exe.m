@@ -21,4 +21,6 @@ ARGS{1}{2} = coder.typeof(0);
 
 %% Invoke MATLAB Coder.
 cd('/home/dasl/airspyhf_channelize');
+tic
 codegen -config cfg airspyhf_channelize -args ARGS{1}
+toc

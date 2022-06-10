@@ -141,39 +141,60 @@ if ~ismember(decimationFactor,allDivisors256Max)
     error(['UAV-RT: Decimation factor not supported. Valid values are: ', num2str(allDivisors256Max.')] ) 
 end
 
-if decimationFactor == 2
-    airspyhfchannelize2(rawSampleRate);
-elseif decimationFactor == 4
-    airspyhfchannelize4(rawSampleRate);
-elseif decimationFactor == 10
-    airspyhfchannelize10(rawSampleRate);
-elseif decimationFactor == 12
-    airspyhfchannelize12(rawSampleRate);
-elseif decimationFactor == 16
-    airspyhfchannelize16(rawSampleRate);
-elseif decimationFactor == 24
-    airspyhfchannelize24(rawSampleRate);
-elseif decimationFactor == 32
-    airspyhfchannelize32(rawSampleRate);
-elseif decimationFactor == 48
+
+% if decimationFactor == 2
+%     airspyhfchannelize2(rawSampleRate);
+% elseif decimationFactor == 4
+%     airspyhfchannelize4(rawSampleRate);
+% elseif decimationFactor == 10
+%     airspyhfchannelize10(rawSampleRate);
+% elseif decimationFactor == 12
+%      airspyhfchannelize12(rawSampleRate);
+% elseif decimationFactor == 16
+%     airspyhfchannelize16(rawSampleRate);
+% elseif decimationFactor == 24
+%      airspyhfchannelize24(rawSampleRate);
+% elseif decimationFactor == 32
+%      airspyhfchannelize32(rawSampleRate);    
+if decimationFactor == 48
     airspyhfchannelize48(rawSampleRate);
-elseif decimationFactor == 64
-    airspyhfchannelize64(rawSampleRate);
-elseif decimationFactor == 80
-    airspyhfchannelize80(rawSampleRate);
-elseif decimationFactor == 96
-    airspyhfchannelize96(rawSampleRate);
-elseif decimationFactor == 100
-    airspyhfchannelize100(rawSampleRate);
-elseif decimationFactor == 120
-    airspyhfchannelize120(rawSampleRate);
-elseif decimationFactor == 128
-    airspyhfchannelize128(rawSampleRate);
-elseif decimationFactor == 192
-    airspyhfchannelize192(rawSampleRate);
-elseif decimationFactor == 256
-    airspyhfchannelize256(rawSampleRate);
+else
+    fprintf('Only decimation factors of 2, 4, 10, 12, 16, 24, 32, 48 are currently supported. Exiting.')
 end
+
+% if decimationFactor == 2
+%     airspyhfchannelize2(rawSampleRate);
+% elseif decimationFactor == 4
+%     airspyhfchannelize4(rawSampleRate);
+% elseif decimationFactor == 10
+%     airspyhfchannelize10(rawSampleRate);
+% elseif decimationFactor == 12
+%     airspyhfchannelize12(rawSampleRate);
+% elseif decimationFactor == 16
+%     airspyhfchannelize16(rawSampleRate);
+% elseif decimationFactor == 24
+%     airspyhfchannelize24(rawSampleRate);
+% elseif decimationFactor == 32
+%     airspyhfchannelize32(rawSampleRate);
+% elseif decimationFactor == 48
+%     airspyhfchannelize48(rawSampleRate);
+% elseif decimationFactor == 64
+%     airspyhfchannelize64(rawSampleRate);
+% elseif decimationFactor == 80
+%     airspyhfchannelize80(rawSampleRate);
+% elseif decimationFactor == 96
+%     airspyhfchannelize96(rawSampleRate);
+% elseif decimationFactor == 100
+%     airspyhfchannelize100(rawSampleRate);
+% elseif decimationFactor == 120
+%     airspyhfchannelize120(rawSampleRate);
+% elseif decimationFactor == 128
+%     airspyhfchannelize128(rawSampleRate);
+% elseif decimationFactor == 192
+%     airspyhfchannelize192(rawSampleRate);
+% elseif decimationFactor == 256
+%     airspyhfchannelize256(rawSampleRate);
+% end
 
 
 end

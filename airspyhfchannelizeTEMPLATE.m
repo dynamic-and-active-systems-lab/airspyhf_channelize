@@ -129,7 +129,7 @@ function []= airspyhfchannelize**NUMBEROFCHANNELS**(rawSampleRate) %#codegen
 %-------------------------------------------------------------------------
 
 decimationFactor = **NUMBEROFCHANNELS**;
-
+fprintf('Channelizer: Starting up...\n')
 coder.varsize('state')
 
 %Channelization Settings
@@ -145,7 +145,8 @@ udpCommandPort      = 10001;
 udpServePorts       = 20000:20000+maxNumChannels-1;%10000:10039;
 
 %Incoming Data Variables
-rawFrameLength      = 128;
+rawFrameLength  = 128;
+
 rawFrameTime        = rawFrameLength/rawSampleRate;
 bytesPerSample      = 8;
 supportedSampleRates = [912 768 456 384 256 192]*1000;
@@ -154,7 +155,7 @@ if ~any(rawSampleRate == supportedSampleRates)
     error(['UAV-RT: Unsupported sample rate requested. Available rates are [',num2str(supportedSampleRates/1000),'] kS/s.'])
 end
 
-
+fprintf('Channelizer: Setting up UDP command and data ports...\n')
 %% SETUP UDP COMMAND INPUT OBJECT
 udpCommand = dsp.UDPReceiver('RemoteIPAddress','0.0.0.0',...%127.0.0.1',...  %Accept all
     'LocalIPPort',udpCommandPort,...
@@ -176,20 +177,21 @@ udpReceive = dsp.UDPReceiver('RemoteIPAddress','0.0.0.0',...%127.0.0.1',... %Acc
 setup(udpReceive);
 
 %% SETUP UDP OUTPUT OBJECTS
-
+fprintf('Channelizer: Setting up output channel UDP ports...\n')
 samplesPerChannelMessage = 1024; % Must be a multiple of 128
 bufferFrames             = samplesPerChannelMessage * decimationFactor / rawFrameLength;
 samplesInBuffer          = bufferFrames * rawFrameLength;
 bytesPerChannelMessage   = bytesPerSample * samplesPerChannelMessage+1;%Adding 1 for the time stamp items on the front of each message. 
 sendBufferSize           = 2^nextpow2(bytesPerChannelMessage);
-dataBuffer               = complex(single(zeros(rawFrameLength, bufferFrames)));
+dataBufferFIFO           = dsp.AsyncBuffer(2*samplesInBuffer);
+write(dataBufferFIFO,single(1+1i));%Write a single value so the number of channels is specified for coder. Specify complex single for airspy data
+read(dataBufferFIFO);     %Read out that single sample to empty the buffer.
 
 udps                     = udpsendercellforcoder('127.0.0.1',udpServePorts,sendBufferSize);
 
 channelizer              = dsp.Channelizer('NumFrequencyBands', nChannels);
 
-bytesReceived = 0;
-sampsReceived = 0;
+totalSampsReceived = 0;
 frameIndex = 1;
 
 %Make initial call to udps. First call is very slow and can cause missed
@@ -202,9 +204,10 @@ for i = 1:numel(nChannels)
     udps{i}(nullPacket);%Add one for blank time stamp
 end
 
-bufferTimeStamp = 0;
+expectedFrameSize = rawFrameLength;
 bufferTimeStamp4Sending = complex(single(0));
 state = 'idle';
+fprintf('Channelizer: Setup complete. Awaiting commands...\n')
 while 1 %<= %floor((recordingDurationSec-1)*rawSampleRate/rawFrameLength)
     switch state
         case 'run'
@@ -216,19 +219,31 @@ while 1 %<= %floor((recordingDurationSec-1)*rawSampleRate/rawFrameLength)
                     bufferTimeStamp = posixtime(datetime('now'));
                     bufferTimeStamp4Sending = double2singlecomplex(bufferTimeStamp);
                 end
-                sampsReceived = sampsReceived + length(dataReceived);
-                dataBuffer(:,frameIndex) = dataReceived;
+                sampsReceived = numel(dataReceived);
+                totalSampsReceived = totalSampsReceived + sampsReceived;
+                %Used to keep a running estimated of the expected frame
+                %size to help identifiy subsize frames received. 
+                if sampsReceived<expectedFrameSize
+                    disp('Subpacket received')
+                end
+                if sampsReceived~=expectedFrameSize
+                    expectedFrameSize = round(mean([sampsReceived, expectedFrameSize]));
+                end
+                write(dataBufferFIFO,dataReceived(:));%Call with (:) to help coder realize it is a single channel
+                
                 frameIndex = frameIndex+1;
-                if frameIndex>bufferFrames
+
+                if dataBufferFIFO.NumUnreadSamples>=samplesInBuffer
+                    fprintf('Channelizer: Running - Buffer filled. Flushing to channels. Currently receiving: %i samples per packet.\n',int32(expectedFrameSize))
                     frameIndex = 1;
                     tic
-                    y = channelizer(dataBuffer(:));
-                    dataBuffer(:,:) = 0;
+                    y = channelizer(read(dataBufferFIFO,samplesInBuffer));
                     for i = 1:nChannels
                     	data = [bufferTimeStamp4Sending; y(:,i)];
                         udps{i}(data)
                     end
-                    toc
+                    time2Channelize = toc;
+                    fprintf('Time required to channelize: %6.6f \n', time2Channelize)
                 end
             else
                 pause(rawFrameTime/2);
@@ -239,7 +254,8 @@ while 1 %<= %floor((recordingDurationSec-1)*rawSampleRate/rawFrameLength)
             
         case 'idle'
             state = 'idle';
-            dataBuffer(:,:) = 0; %Clear the buffer
+            reset(dataBufferFIFO);
+            fprintf('Channelizer: Idle. Waiting for command...\n')
             pause(pauseWhenIdleTime);%Wait a bit so to throttle idle execution
             cmdReceived  = udpCommand();
             state = checkcommand(cmdReceived,state);
@@ -247,8 +263,9 @@ while 1 %<= %floor((recordingDurationSec-1)*rawSampleRate/rawFrameLength)
                 reset(udpReceive);%Reset to clear buffer so data is fresh - in case state had been idle
             end
         case 'kill'
+            fprintf('Channelizer: Entering Kill state. Shutting down.\n')
             state = 'dead';
-            dataBuffer(:,:) = 0; %Clear the buffer
+            release(dataBufferFIFO);
             release(udpReceive)
             release(udpCommand)
             break
@@ -266,10 +283,13 @@ function state = checkcommand(cmdReceived,currentState)
 %do based on the received command and the current state
 if ~isempty(cmdReceived)
     if cmdReceived == -1
+        fprintf('Channelizer: Kill command received.\n')
         state = 'kill';
     elseif cmdReceived == 0
+        fprintf('Channelizer: Idle command received.\n')
         state = 'idle';
     elseif cmdReceived == 1
+        fprintf('Channelizer: Run command received.\n')
         state = 'run';
     else
         %Invalid command. Continue with current state.
