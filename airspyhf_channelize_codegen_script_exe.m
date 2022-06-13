@@ -15,7 +15,7 @@ end
 cfg = coder.config('exe','ecoder',false);
 cfg.CustomInclude = [curr_dir,'/CustomMains'];
 cfg.CustomSource  = [curr_dir,'/CustomMains/main.c'];
-cfg.GenCodeOnly = true;
+%cfg.GenCodeOnly = true;
 cfg.GenerateReport = true;
 cfg.ReportPotentialDifferences = false;
 
