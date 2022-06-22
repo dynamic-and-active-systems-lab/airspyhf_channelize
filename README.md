@@ -52,11 +52,11 @@ This requires the installation of [airspyhf](https://github.com/airspy/airspyhf)
 ### Controlling operation
 After running these two commands the program will start up but will initially be in an idle stat. There are three states of operation: 1) Idle/Pause 2) Running 3) Dead/Killed. The program accepts commands to transition between states from local port 10001. Transmitting a 1 will start the channelization and output. Transmitting a 0 will pause the operation and put the program into a idle state. Transmitting a -1 will terminate the program. In a separate terminal window, transmit the start, pause, or kill commands with commands: 
 
-Start: `echo -e -n '\x01'| netcat -u localhost 10001`
+Start: `echo -e -n '\x01'| netcat -u -c localhost 10001`
 
-Pause: `echo -e -n '\x00'| netcat -u localhost 10001`
+Pause: `echo -e -n '\x00'| netcat -u -c localhost 10001`
 
-Kill:  `echo -e -n '\xFF'| netcat -u localhost 10001`
+Kill:  `echo -e -n '\xFF'| netcat -u -c localhost 10001`
 
 ### Receiving channelized data
 
