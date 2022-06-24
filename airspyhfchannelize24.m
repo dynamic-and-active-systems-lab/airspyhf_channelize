@@ -134,8 +134,6 @@ coder.varsize('state')
 
 %Channelization Settings
 maxNumChannels      = 256;
-decimatedSampleRate = rawSampleRate/decimationFactor;
-
 nChannels           = decimationFactor; %Decimation is currently set to equal nChannels. Must be a factor of rawFrameLength
 pauseWhenIdleTime   = 0.25;
 
@@ -170,7 +168,7 @@ setup(udpCommand);
 udpReceive = dsp.UDPReceiver('RemoteIPAddress','0.0.0.0',...%127.0.0.1',... %Accept all
     'LocalIPPort',udpReceivePort,...
     'ReceiveBufferSize',2^18,...%2^16 = 65536, 2^18
-    'MaximumMessageLength',1024,...
+    'MaximumMessageLength',4096,...%1024,...%128 on a Mac and 2048 on Linux
     'MessageDataType','single',...
     'IsMessageComplex',true);
 
@@ -179,11 +177,10 @@ setup(udpReceive);
 %% SETUP UDP OUTPUT OBJECTS
 fprintf('Channelizer: Setting up output channel UDP ports...\n')
 samplesPerChannelMessage = 1024; % Must be a multiple of 128
-bufferFrames             = samplesPerChannelMessage * decimationFactor / rawFrameLength;
-samplesInBuffer          = bufferFrames * rawFrameLength;
+samplesAtFlush           = samplesPerChannelMessage * decimationFactor;
 bytesPerChannelMessage   = bytesPerSample * samplesPerChannelMessage+1;%Adding 1 for the time stamp items on the front of each message. 
 sendBufferSize           = 2^nextpow2(bytesPerChannelMessage);
-dataBufferFIFO           = dsp.AsyncBuffer(2*samplesInBuffer);
+dataBufferFIFO           = dsp.AsyncBuffer(2*samplesAtFlush);
 write(dataBufferFIFO,single(1+1i));%Write a single value so the number of channels is specified for coder. Specify complex single for airspy data
 read(dataBufferFIFO);     %Read out that single sample to empty the buffer.
 
@@ -208,13 +205,13 @@ expectedFrameSize = rawFrameLength;
 bufferTimeStamp4Sending = complex(single(0));
 state = 'idle';
 fprintf('Channelizer: Setup complete. Awaiting commands...\n')
+tic;
 while 1 %<= %floor((recordingDurationSec-1)*rawSampleRate/rawFrameLength)
     switch state
         case 'run'
             state = 'run';
-            tic
             dataReceived = udpReceive();
-            if (~isempty(dataReceived))
+            if (~isempty(dataReceived))               
                 if frameIndex == 1
                     bufferTimeStamp = posixtime(datetime('now'));
                     bufferTimeStamp4Sending = double2singlecomplex(bufferTimeStamp);
@@ -233,11 +230,12 @@ while 1 %<= %floor((recordingDurationSec-1)*rawSampleRate/rawFrameLength)
                 
                 frameIndex = frameIndex+1;
 
-                if dataBufferFIFO.NumUnreadSamples>=samplesInBuffer
-                    fprintf('Channelizer: Running - Buffer filled. Flushing to channels. Currently receiving: %i samples per packet.\n',int32(expectedFrameSize))
+                if dataBufferFIFO.NumUnreadSamples>=samplesAtFlush
+                    fprintf('Channelizer: Running - Buffer filled with %u samples. Flushing to channels. Currently receiving: %i samples per packet.\n',uint32(samplesAtFlush),int32(expectedFrameSize))
+                    fprintf('Actual time between buffer flushes: %6.6f.  Expected: %6.6f. \n', toc, samplesAtFlush/rawSampleRate)
                     frameIndex = 1;
-                    tic
-                    y = channelizer(read(dataBufferFIFO,samplesInBuffer));
+                    tic;
+                    y = channelizer(read(dataBufferFIFO,samplesAtFlush));
                     for i = 1:nChannels
                     	data = [bufferTimeStamp4Sending; y(:,i)];
                         udps{i}(data)
