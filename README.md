@@ -20,7 +20,7 @@ We provide two of these scripts. One (`airspyhf_channelize_codegen_script_exe.m`
 #### Executable for Linux
 When testing `airspyhf_channelize_codegen_script_exe.m` for executable generation on Linux though (Ubuntu 20.04), Matlab Coder failed. In order to generate an executable for Linux, additional steps are needed and listed below. 
 1. After cloning this repo run `airspyhf_channelize_codegen_script_lib.m` in Matlab. This may take a long time to run. See the note below. 
-2. Coder will generate a `codegen` directory within the repo directory. Navigate to the `codegen/lib/airspyhf_channelize/` directory in a new terminal window and use the resulting make file (`airspyhf_channelize_rtw.mk`) to generate the static library (`*.a`) file. To do this, run `$ make -f airspyhf_channelizer_rtw.mk` in terminal.
+2. Coder will generate a `codegen` directory within the repo directory. Navigate to the `codegen/lib/airspyhf_channelize/` directory in a new terminal window and use the resulting make file (`airspyhf_channelize_rtw.mk`) to generate the static library (`*.a`) file. To do this, run `$ make -f airspyhf_channelize_rtw.mk` in terminal.
 3. We now need to package all of the dependencies to simplify the compiling that is about to come. Go back to Matlab be sure you are in the repo directory. Run the following in Matlab to package all the dependencies into a single .zip file called `portairspyhf_channelize.zip`.
     - Run `>> load buildInfo.mat`
    - Run `>> packNGo(buildInfo, 'packType','flat','filename','portairspyhf_channelize')`
