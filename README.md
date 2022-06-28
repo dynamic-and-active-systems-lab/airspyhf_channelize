@@ -14,7 +14,7 @@ The development of this code was funded via [National Science Foundation grant n
 ### Setup for running in Matlab
 After cloning this repo, the airspyhf_channelize.m function can be run directly in Matlab. No additional setup should be needed.
 ### Setup for building a compiled executable 
-The `airspyhf_channelize` function can be converted to an executable using Matlab Coder. In this way the channelizer will not require Matlab to run. The scripts to do the code generation are `airspyhf_channelize_codegen_script_***.m`. **These scripts have paths in them (in three locations in the script) that need to be updated to the location where you have cloned this repo on your machine. These are in the lines that contain `cfg.CustomInclude`, `cfg.CustomSource`, and `cd`. Be sure updated these paths to the local directories before running any of the commands below.**
+The `airspyhf_channelize` function can be converted to an executable using Matlab Coder. In this way the channelizer will not require Matlab to run. The scripts to do the code generation are `airspyhf_channelize_codegen_script_***.m`. 
 #### Executable for macOS
 We provide two of these scripts. One (`airspyhf_channelize_codegen_script_exe.m`) can be used to generate the executable directly. We have tested this on macOS and it generates a executable that can be run in terminal. 
 #### Executable for Linux
