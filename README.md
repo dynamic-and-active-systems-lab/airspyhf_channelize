@@ -14,13 +14,13 @@ The development of this code was funded via [National Science Foundation grant n
 ### Setup for running in Matlab
 After cloning this repo, the airspyhf_channelize.m function can be run directly in Matlab. No additional setup should be needed.
 ### Setup for building a compiled executable 
-The `airspyhf_channelize` function can be converted to an executable using Matlab Coder. In this way the channelizer will not require Matlab to run. The scripts to do the code generation are `airspyhf_channelize_codegen_script_***.m`. **These scripts have paths in them (in three locations in the script) that need to be updated to the location where you have cloned this repo on your machine. These are in the lines that contain `cfg.CustomInclude`, `cfg.CustomSource`, and `cd`. Be sure updated these paths to the local directories before running any of the commands below.**
+The `airspyhf_channelize` function can be converted to an executable using Matlab Coder. In this way the channelizer will not require Matlab to run. The scripts to do the code generation are `airspyhf_channelize_codegen_script_***.m`. 
 #### Executable for macOS
 We provide two of these scripts. One (`airspyhf_channelize_codegen_script_exe.m`) can be used to generate the executable directly. We have tested this on macOS and it generates a executable that can be run in terminal. 
 #### Executable for Linux
 When testing `airspyhf_channelize_codegen_script_exe.m` for executable generation on Linux though (Ubuntu 20.04), Matlab Coder failed. In order to generate an executable for Linux, additional steps are needed and listed below. 
 1. After cloning this repo run `airspyhf_channelize_codegen_script_lib.m` in Matlab. This may take a long time to run. See the note below. 
-2. Coder will generate a `codegen` directory within the repo directory, in which there will be an `airspyhf_channelize` folder. Navigate to this folder in new terminal window and use the resulting make file (`airspyhf_channelize_rtw.mk`) to generate the static library (`*.a`) file. To do this, run `$ make -f airspyhf_channelizer_rtw.mk` in terminal.
+2. Coder will generate a `codegen` directory within the repo directory. Navigate to the `codegen/lib/airspyhf_channelize/` directory in a new terminal window and use the resulting make file (`airspyhf_channelize_rtw.mk`) to generate the static library (`*.a`) file. To do this, run `$ make -f airspyhf_channelize_rtw.mk` in terminal.
 3. We now need to package all of the dependencies to simplify the compiling that is about to come. Go back to Matlab be sure you are in the repo directory. Run the following in Matlab to package all the dependencies into a single .zip file called `portairspyhf_channelize.zip`.
     - Run `>> load buildInfo.mat`
    - Run `>> packNGo(buildInfo, 'packType','flat','filename','portairspyhf_channelize')`
@@ -28,9 +28,9 @@ When testing `airspyhf_channelize_codegen_script_exe.m` for executable generatio
 5. Unfortunately, we have found that two dependencies aren't included with the packNGo functionality and must now be copied manually into the unzipped directory. 
     - Find the `libdl.so`  library symbolic link on your machine. For a typical install it should be in `/usr/lib/x86_64-linux-gnu`. Copy the symbolic link to the unzipped directory. 
     - Find the `libiomp5.so` library in your Matlab root directory. For a typical install of Matlab R2022a it should be in `/<MATLAB_ROOT>/sys/os/glnxa64`. Copy `libiomp5.so` to the unzipped directory. 
-6. Open a terminal in the directory of the unzipped files and run `$ export LD_LIBRARY_PATH=<PATH TO THE UNZIPPED FILES>`.
+6. Open a terminal in the directory of the unzipped files and run `$ export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:<PATH TO THE UNZIPPED FILES>"`.
 7. In this terminal, run `gcc main.c *.a *.so -o airspyhf_channelize`
-8. The executable should be generated. To run this on a linux machine `./` needs to precede the `airspyhf_channelize` commands listed below in Basic Operation. ie. `./airspyhf_channelize 192000 48`    
+8. The executable should be generated. To run this on a linux machine `./` needs to precede the `airspyhf_channelize` commands listed below in Basic Operation. ie. `./airspyhf_channelize 192000 48`. IMPORTANT: On subsequent calls of the program or in other terminal windows, you'll need to re-run `$ export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:<PATH TO THE UNZIPPED FILES>"` prior to calling airspyhf_channelizer. 
 
 **Note:** Due to code generation restrictions within Matlab, each decimation factor for the channelizer required its own function. As such, the `airspyhf_channelize_codegen_script.m` may may take a long time to complete (up to a few hours). If you only need a subset of the decimation factor provided in this repo, it is highly recommended to modify the `airspyhf_channelize.m` function to limit the number of decimation/channel options so that the function compiles faster. 
 
