@@ -35,12 +35,15 @@ end
 doubleNum = ones(size(singleComplex));
 
 for i = 1:numel(singleComplex)
-    MSBSingle = real(singleComplex(i));
-    LSBSingle = imag(singleComplex(i));
-    MSBHexString = dec2hex(typecast(MSBSingle,'uint32'));
-    LSBHexString = dec2hex(typecast(LSBSingle,'uint32'));
-    HexString = [MSBHexString, LSBHexString];
-    doubleNum(i) = hex2num(HexString);
+    topSingleOut     = real(singleComplex(i));
+    botSingleOut     = imag(singleComplex(i));
+    topVecOut        = typecast(topSingleOut,'uint32');
+    botVecOut        = typecast(botSingleOut,'uint32');
+    topHexStringOut  = dec2hex(topVecOut);
+    botHexStringOut  = dec2hex(botVecOut);
+    fullHexStringOut = [topHexStringOut, botHexStringOut];
+    doubleNum(i)     = hex2num(fullHexStringOut);
+
 end
 end
 

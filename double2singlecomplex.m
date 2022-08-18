@@ -24,12 +24,14 @@ end
 singleComplex = complex(single(ones(size(doubleNum))));
 
 for i = 1:numel(doubleNum)
-    fullHexString = num2hex(doubleNum(i));
-    MSBHexString = fullHexString(1:8);
-    LSBHexString = fullHexString(9:16);
-    MSBSingle = typecast(uint32(hex2dec(MSBHexString)),'single');
-    LSBSingle = typecast(uint32(hex2dec(LSBHexString)),'single');
-    singleComplex(i) = MSBSingle+1i*LSBSingle;
+    fullHexStringIn  = num2hex(doubleNum(i));
+    topHexStringIn   = fullHexStringIn(1:8);
+    botHexStringIn   = fullHexStringIn(9:16);
+    topVecIn         = uint32(sscanf(topHexStringIn,'%8x'));
+    botVecIn         = uint32(sscanf(botHexStringIn,'%8x'));
+    topSingleIn      = typecast(topVecIn,'single');
+    botSingleIn      = typecast(botVecIn,'single');
+    singleComplex(i) = complex(topSingleIn, botSingleIn);
 end
 end
 
