@@ -44,3 +44,5 @@ decimationfactorsandrates.xlsx
 airspyhf_channelize_20220128
 airspyhf_channelize
 *.asv
+double2singlecomplex.m
+singlecomplex2double.m

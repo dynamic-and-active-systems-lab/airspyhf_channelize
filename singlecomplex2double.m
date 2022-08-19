@@ -37,10 +37,12 @@ doubleNum = ones(size(singleComplex));
 for i = 1:numel(singleComplex)
     topSingleOut     = real(singleComplex(i));
     botSingleOut     = imag(singleComplex(i));
-    topVecOut        = typecast(topSingleOut,'uint32');
-    botVecOut        = typecast(botSingleOut,'uint32');
-    topHexStringOut  = dec2hex(topVecOut);
-    botHexStringOut  = dec2hex(botVecOut);
+    topVecOut        = typecast(topSingleOut,'uint8');
+    botVecOut        = typecast(botSingleOut,'uint8');
+    topHexVecOut     = dec2hex(topVecOut)';
+    botHexVecOut     = dec2hex(botVecOut)';
+    topHexStringOut  = topHexVecOut(:)';
+    botHexStringOut  = botHexVecOut(:)';
     fullHexStringOut = [topHexStringOut, botHexStringOut];
     doubleNum(i)     = hex2num(fullHexStringOut);
 

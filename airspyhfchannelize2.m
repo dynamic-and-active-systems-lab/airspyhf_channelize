@@ -37,13 +37,12 @@ function []= airspyhfchannelize2(rawSampleRate) %#codegen
 %   The timestamp on each frame is associate with the time of arrival of
 %   the first sample in the frame. 
 %
-%   The timestamp is a double precision posixtime value. The first (MSB)
-%   8 bits of this number is cast to a uint32 value and set as the real
-%   part of the encoded time. The second (LSB) 8 bits of this double
-%   presition posixtime value are also cast to a uint32 value and set as
-%   the complex part of the encoded time. To encode and decode these times,
-%   use the double2singlecomplex.m and the singlecomplex2double.m
-%   functions, respectively. 
+%   The timestamp is a precision posixtime value in milliseconds. The 
+%   timestamp is transmitted as a single precision complex value. The
+%   imaginary part of this timestamp contains the first 7 digits of the
+%   time in milliseconds. The real part contains the upper digits (>=8) of
+%   the timestamp. See the help for int2singlecomplex and singlecomplex2int
+%   for more information on this transmission standard. 
 %
 %   PORT LISTING
 %       10000       Receive port for airspy data
@@ -193,8 +192,8 @@ frameIndex = 1;
 
 %Make initial call to udps. First call is very slow and can cause missed
 %samples if left within the while loop
-initialTimeStamp = posixtime(datetime('now'));
-initialTimeStamp4Sending = double2singlecomplex(initialTimeStamp);
+initialTimeStamp = round(10^3*posixtime(datetime('now')));
+initialTimeStamp4Sending = int2singlecomplex(initialTimeStamp);
 for i = 1:numel(nChannels)
     singleZeros = single(zeros(samplesPerChannelMessage,1));
     nullPacket = [initialTimeStamp4Sending; singleZeros];
@@ -213,8 +212,8 @@ while 1 %<= %floor((recordingDurationSec-1)*rawSampleRate/rawFrameLength)
             dataReceived = udpReceive();
             if (~isempty(dataReceived))               
                 if frameIndex == 1
-                    bufferTimeStamp = posixtime(datetime('now'));
-                    bufferTimeStamp4Sending = double2singlecomplex(bufferTimeStamp);
+                    bufferTimeStamp = round(10^3*posixtime(datetime('now')));
+                    bufferTimeStamp4Sending = int2singlecomplex(bufferTimeStamp);
                 end
                 sampsReceived = numel(dataReceived);
                 totalSampsReceived = totalSampsReceived + sampsReceived;
