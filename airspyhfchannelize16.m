@@ -154,7 +154,7 @@ end
 
 fprintf('Channelizer: Setting up UDP command and data ports...\n')
 %% SETUP UDP COMMAND INPUT OBJECT
-udpCommand = dsp.UDPReceiver('RemoteIPAddress','0.0.0.0',...%127.0.0.1',...  %Accept all
+udpCommand = dsp.UDPReceiver('RemoteIPAddress','127.0.0.1',...%127.0.0.1',...  %Accept all
     'LocalIPPort',udpCommandPort,...
     'ReceiveBufferSize',2^6,...%2^16 = 65536, 2^18
     'MaximumMessageLength',1024,...
@@ -164,7 +164,7 @@ udpCommand = dsp.UDPReceiver('RemoteIPAddress','0.0.0.0',...%127.0.0.1',...  %Ac
 setup(udpCommand);
 
 %% SETUP UDP DATA INPUT OBJECT
-udpReceive = dsp.UDPReceiver('RemoteIPAddress','0.0.0.0',...%127.0.0.1',... %Accept all
+udpReceive = dsp.UDPReceiver('RemoteIPAddress','127.0.0.1',...%127.0.0.1',... %Accept all
     'LocalIPPort',udpReceivePort,...
     'ReceiveBufferSize',2^18,...%2^16 = 65536, 2^18
     'MaximumMessageLength',4096,...%1024,...%128 on a Mac and 2048 on Linux
