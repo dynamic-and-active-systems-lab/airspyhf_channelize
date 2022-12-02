@@ -129,7 +129,6 @@ function []= airspyhfchannelize48(rawSampleRate) %#codegen
 
 decimationFactor = 48;
 fprintf('Channelizer: Starting up...\n')
-coder.varsize('state')
 
 %Channelization Settings
 maxNumChannels      = 256;
@@ -138,7 +137,6 @@ pauseWhenIdleTime   = 0.25;
 
 %UDP Settings
 udpReceivePort      = 10000;
-udpCommandPort      = 10001;
 udpServePorts       = 20000:20000+maxNumChannels-1;%10000:10039;
 
 %Incoming Data Variables
@@ -152,26 +150,10 @@ if ~any(rawSampleRate == supportedSampleRates)
     error(['UAV-RT: Unsupported sample rate requested. Available rates are [',num2str(supportedSampleRates/1000),'] kS/s.'])
 end
 
-fprintf('Channelizer: Setting up UDP command and data ports...\n')
-%% SETUP UDP COMMAND INPUT OBJECT
-udpCommand = dsp.UDPReceiver('RemoteIPAddress','127.0.0.1',...%127.0.0.1',...  %Accept all
-    'LocalIPPort',udpCommandPort,...
-    'ReceiveBufferSize',2^6,...%2^16 = 65536, 2^18
-    'MaximumMessageLength',1024,...
-    'MessageDataType','int8',...
-    'IsMessageComplex',false);
-
-setup(udpCommand);
-
 %% SETUP UDP DATA INPUT OBJECT
-udpReceive = dsp.UDPReceiver('RemoteIPAddress','127.0.0.1',...%127.0.0.1',... %Accept all
-    'LocalIPPort',udpReceivePort,...
-    'ReceiveBufferSize',2^18,...%2^16 = 65536, 2^18
-    'MaximumMessageLength',4096,...%1024,...%128 on a Mac and 2048 on Linux
-    'MessageDataType','single',...
-    'IsMessageComplex',true);
-
-setup(udpReceive);
+airspyFrameSamples      = 1024;                     % Airspy sends out 1024 complex samples in each udp packet
+udpReceiveBufferSize    = 2^16;
+udpReceive              = udpReceiverSetup('127.0.0.1', udpReceivePort, udpReceiveBufferSize, airspyFrameSamples);
 
 %% SETUP UDP OUTPUT OBJECTS
 fprintf('Channelizer: Setting up output channel UDP ports...\n')
@@ -187,7 +169,6 @@ udps                     = udpsendercellforcoder('127.0.0.1',udpServePorts,sendB
 
 channelizer              = dsp.Channelizer('NumFrequencyBands', nChannels);
 
-totalSampsReceived = 0;
 frameIndex = 1;
 
 %Make initial call to udps. First call is very slow and can cause missed
@@ -202,100 +183,46 @@ end
 
 expectedFrameSize = rawFrameLength;
 bufferTimeStamp4Sending = complex(single(0));
-state = 'idle';
-fprintf('Channelizer: Setup complete. Awaiting commands...\n')
+fprintf('Channelizer: Setup complete. Awaiting udp data...\n')
 tic;
-while 1 %<= %floor((recordingDurationSec-1)*rawSampleRate/rawFrameLength)
-    switch state
-        case 'run'
-            state = 'run';
-            dataReceived = udpReceive();
-            if (~isempty(dataReceived))               
-                if frameIndex == 1
-                    bufferTimeStamp = round(10^3*posixtime(datetime('now')));
-                    bufferTimeStamp4Sending = int2singlecomplex(bufferTimeStamp);
-                end
-                sampsReceived = numel(dataReceived);
-                totalSampsReceived = totalSampsReceived + sampsReceived;
-                %Used to keep a running estimated of the expected frame
-                %size to help identifiy subsize frames received. 
-                if sampsReceived<expectedFrameSize
-                    disp('Subpacket received')
-                end
-                if sampsReceived~=expectedFrameSize
-                    expectedFrameSize = round(mean([sampsReceived, expectedFrameSize]));
-                end
-                write(dataBufferFIFO,dataReceived(:));%Call with (:) to help coder realize it is a single channel
-                
-                frameIndex = frameIndex+1;
 
-                if dataBufferFIFO.NumUnreadSamples>=samplesAtFlush
-                    fprintf('Channelizer: Running - Buffer filled with %u samples. Flushing to channels. Currently receiving: %i samples per packet.\n',uint32(samplesAtFlush),int32(expectedFrameSize))
-                    fprintf('Actual time between buffer flushes: %6.6f.  Expected: %6.6f. \n', toc, samplesAtFlush/rawSampleRate)
-                    frameIndex = 1;
-                    tic;
-                    y = channelizer(read(dataBufferFIFO,samplesAtFlush));
-                    for i = 1:nChannels
-                    	data = [bufferTimeStamp4Sending; y(:,i)];
-                        udps{i}(data)
-                    end
-                    time2Channelize = toc;
-                    fprintf('Time required to channelize: %6.6f \n', time2Channelize)
-                end
-            else
-                pause(rawFrameTime/2);
+while true
+    dataReceived = udpReceiverRead(udpReceive, udpReceiveBufferSize);
+
+    if (~isempty(dataReceived))               
+        if frameIndex == 1
+            bufferTimeStamp = round(10^3*posixtime(datetime('now')));
+            bufferTimeStamp4Sending = int2singlecomplex(bufferTimeStamp);
+        end
+        sampsReceived = numel(dataReceived);
+        %Used to keep a running estimated of the expected frame
+        %size to help identifiy subsize frames received. 
+        if sampsReceived<expectedFrameSize
+            disp('Subpacket received')
+        end
+        if sampsReceived~=expectedFrameSize
+            expectedFrameSize = round(mean([sampsReceived, expectedFrameSize]));
+        end
+        write(dataBufferFIFO,dataReceived(:));%Call with (:) to help coder realize it is a single channel
+        
+        frameIndex = frameIndex+1;
+
+        if dataBufferFIFO.NumUnreadSamples>=samplesAtFlush
+            fprintf('Channelizer: Running - Buffer filled with %u samples. Flushing to channels. Currently receiving: %i samples per packet.\n',uint32(samplesAtFlush),int32(expectedFrameSize))
+            fprintf('Actual time between buffer flushes: %6.6f.  Expected: %6.6f. \n', toc, samplesAtFlush/rawSampleRate)
+            frameIndex = 1;
+            tic;
+            y = channelizer(read(dataBufferFIFO,samplesAtFlush));
+            for i = 1:nChannels
+            	data = [bufferTimeStamp4Sending; y(:,i)];
+                udpSenderSend(udps{i}, data);
             end
-            
-            cmdReceived  = udpCommand();
-            state = checkcommand(cmdReceived,state);
-            
-        case 'idle'
-            state = 'idle';
-            reset(dataBufferFIFO);
-            fprintf('Channelizer: Idle. Waiting for command...\n')
-            pause(pauseWhenIdleTime);%Wait a bit so to throttle idle execution
-            cmdReceived  = udpCommand();
-            state = checkcommand(cmdReceived,state);
-            if strcmp(state,'run')
-                reset(udpReceive);%Reset to clear buffer so data is fresh - in case state had been idle
-            end
-        case 'kill'
-            fprintf('Channelizer: Entering Kill state. Shutting down.\n')
-            state = 'dead';
-            release(dataBufferFIFO);
-            release(udpReceive)
-            release(udpCommand)
-            break
-        otherwise
-            %Should never get to this case, but jump to idle if we get
-            %here.
-            state = 'idle';
-    end
-
-end
-
-
-function state = checkcommand(cmdReceived,currentState)
-%This function is designed to check the incoming command and decide what to
-%do based on the received command and the current state
-if ~isempty(cmdReceived)
-    if cmdReceived == -1
-        fprintf('Channelizer: Kill command received.\n')
-        state = 'kill';
-    elseif cmdReceived == 0
-        fprintf('Channelizer: Idle command received.\n')
-        state = 'idle';
-    elseif cmdReceived == 1
-        fprintf('Channelizer: Run command received.\n')
-        state = 'run';
+            time2Channelize = toc;
+            fprintf('Time required to channelize: %6.6f \n', time2Channelize)
+        end
     else
-        %Invalid command. Continue with current state.
-        state = currentState;
+        pause(rawFrameTime/2);
     end
-else
-    %Nothing received. Continue with current state.
-    state = currentState;
-end
 end
 
 end
