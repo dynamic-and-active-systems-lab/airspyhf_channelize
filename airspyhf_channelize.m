@@ -35,14 +35,6 @@ function []= airspyhf_channelize(rawSampleRate,decimationFactor) %#codegen
 %       10000       Receive port for airspy data
 %                      Complex single precision data
 %                      Maximum message size 1024 bytes
-%       10001       Receive port for fucntion control commands
-%                      Real int8 data
-%                      Maximum message size 1024 bytes
-%                      Valid inputs are
-%                           1   Start data reception/transmission
-%                           0   Stop (pause) data reception/transmission
-%                               and flush the buffer
-%                           -1  Terminate the function
 %       20000:20*** Send ports for serving channelized UDP data. The
 %                   center frequency of the channel for port 20000 is the
 %                   center frequency of the incoming data. Subsequent port
@@ -106,15 +98,6 @@ function []= airspyhf_channelize(rawSampleRate,decimationFactor) %#codegen
 %       already running or a 'Connection refused' error will occur in
 %       terminal.
 %
-%       Command signals send via UDP can be entered in the command line as
-%       follows:
-%           Start (send a 1): 
-%               echo -e -n '\x01'| netcat -u localhost 10001
-%           Pause (send a 0): 
-%               echo -e -n '\x00'| netcat -u localhost 10001
-%           Kill (send a -1): 
-%               echo -e -n '\xFF'| netcat -u localhost 10001
-%
 %-------------------------------------------------------------------------
 %Author:    Michael Shafer
 %Date:      2022-01-18
@@ -141,60 +124,101 @@ if ~ismember(decimationFactor,allDivisors256Max)
     error(['UAV-RT: Decimation factor not supported. Valid values are: ', num2str(allDivisors256Max.')] ) 
 end
 
+fprintf('Channelizer: Starting up...\n')
 
-% if decimationFactor == 2
-%     airspyhfchannelize2(rawSampleRate);
-% elseif decimationFactor == 4
-%     airspyhfchannelize4(rawSampleRate);
-% elseif decimationFactor == 10
-%     airspyhfchannelize10(rawSampleRate);
-% elseif decimationFactor == 12
-%      airspyhfchannelize12(rawSampleRate);
-% elseif decimationFactor == 16
-%     airspyhfchannelize16(rawSampleRate);
-% elseif decimationFactor == 24
-%      airspyhfchannelize24(rawSampleRate);
-% elseif decimationFactor == 32
-%      airspyhfchannelize32(rawSampleRate);    
-if decimationFactor == 48
-    airspyhfchannelize48(rawSampleRate);
-else
-    fprintf('Only decimation factors of 2, 4, 10, 12, 16, 24, 32, 48 are currently supported. Exiting.')
+%Channelization Settings
+maxNumChannels      = 256;
+nChannels           = decimationFactor; %Decimation is currently set to equal nChannels. Must be a factor of rawFrameLength
+pauseWhenIdleTime   = 0.25;
+
+%UDP Settings
+udpReceivePort      = 10000;
+udpServePorts       = 20000:20000+maxNumChannels-1;%10000:10039;
+
+%Incoming Data Variables
+rawFrameLength  = 128;
+
+rawFrameTime        = rawFrameLength/rawSampleRate;
+bytesPerSample      = 8;
+supportedSampleRates = [912 768 456 384 256 192]*1000;
+
+if ~any(rawSampleRate == supportedSampleRates)
+    error(['UAV-RT: Unsupported sample rate requested. Available rates are [',num2str(supportedSampleRates/1000),'] kS/s.'])
 end
 
-% if decimationFactor == 2
-%     airspyhfchannelize2(rawSampleRate);
-% elseif decimationFactor == 4
-%     airspyhfchannelize4(rawSampleRate);
-% elseif decimationFactor == 10
-%     airspyhfchannelize10(rawSampleRate);
-% elseif decimationFactor == 12
-%     airspyhfchannelize12(rawSampleRate);
-% elseif decimationFactor == 16
-%     airspyhfchannelize16(rawSampleRate);
-% elseif decimationFactor == 24
-%     airspyhfchannelize24(rawSampleRate);
-% elseif decimationFactor == 32
-%     airspyhfchannelize32(rawSampleRate);
-% elseif decimationFactor == 48
-%     airspyhfchannelize48(rawSampleRate);
-% elseif decimationFactor == 64
-%     airspyhfchannelize64(rawSampleRate);
-% elseif decimationFactor == 80
-%     airspyhfchannelize80(rawSampleRate);
-% elseif decimationFactor == 96
-%     airspyhfchannelize96(rawSampleRate);
-% elseif decimationFactor == 100
-%     airspyhfchannelize100(rawSampleRate);
-% elseif decimationFactor == 120
-%     airspyhfchannelize120(rawSampleRate);
-% elseif decimationFactor == 128
-%     airspyhfchannelize128(rawSampleRate);
-% elseif decimationFactor == 192
-%     airspyhfchannelize192(rawSampleRate);
-% elseif decimationFactor == 256
-%     airspyhfchannelize256(rawSampleRate);
-% end
+%% SETUP UDP DATA INPUT OBJECT
+airspyFrameSamples      = 1024;                     % Airspy sends out 1024 complex samples in each udp packet
+udpReceiveBufferSize    = 2^16;
+udpReceive              = udpReceiverSetup('127.0.0.1', udpReceivePort, udpReceiveBufferSize, airspyFrameSamples);
 
+%% SETUP UDP OUTPUT OBJECTS
+fprintf('Channelizer: Setting up output channel UDP ports...\n')
+samplesPerChannelMessage = 1024; % Must be a multiple of 128
+samplesAtFlush           = samplesPerChannelMessage * decimationFactor;
+bytesPerChannelMessage   = bytesPerSample * samplesPerChannelMessage+1;%Adding 1 for the time stamp items on the front of each message. 
+sendBufferSize           = 2^nextpow2(bytesPerChannelMessage);
+dataBufferFIFO           = dsp.AsyncBuffer(2*samplesAtFlush);
+write(dataBufferFIFO,single(1+1i));%Write a single value so the number of channels is specified for coder. Specify complex single for airspy data
+read(dataBufferFIFO);     %Read out that single sample to empty the buffer.
+
+udps                     = udpsendercellforcoder('127.0.0.1',udpServePorts,sendBufferSize);
+
+channelizer              = selectChannelizer(nChannels);
+
+frameIndex = 1;
+
+%Make initial call to udps. First call is very slow and can cause missed
+%samples if left within the while loop
+initialTimeStamp = round(10^3*posixtime(datetime('now')));
+initialTimeStamp4Sending = int2singlecomplex(initialTimeStamp);
+for i = 1:numel(nChannels)
+    singleZeros = single(zeros(samplesPerChannelMessage,1));
+    nullPacket = [initialTimeStamp4Sending; singleZeros];
+    udps{i}(nullPacket);%Add one for blank time stamp
+end
+
+expectedFrameSize = rawFrameLength;
+bufferTimeStamp4Sending = complex(single(0));
+fprintf('Channelizer: Setup complete. Awaiting udp data...\n')
+tic;
+
+while true
+    dataReceived = udpReceiverRead(udpReceive, udpReceiveBufferSize);
+
+    if (~isempty(dataReceived))               
+        if frameIndex == 1
+            bufferTimeStamp = round(10^3*posixtime(datetime('now')));
+            bufferTimeStamp4Sending = int2singlecomplex(bufferTimeStamp);
+        end
+        sampsReceived = numel(dataReceived);
+        %Used to keep a running estimated of the expected frame
+        %size to help identifiy subsize frames received. 
+        if sampsReceived<expectedFrameSize
+            disp('Subpacket received')
+        end
+        if sampsReceived~=expectedFrameSize
+            expectedFrameSize = round(mean([sampsReceived, expectedFrameSize]));
+        end
+        write(dataBufferFIFO,dataReceived(:));%Call with (:) to help coder realize it is a single channel
+        
+        frameIndex = frameIndex+1;
+
+        if dataBufferFIFO.NumUnreadSamples>=samplesAtFlush
+            fprintf('Channelizer: Running - Buffer filled with %u samples. Flushing to channels. Currently receiving: %i samples per packet.\n',uint32(samplesAtFlush),int32(expectedFrameSize))
+            fprintf('Actual time between buffer flushes: %6.6f.  Expected: %6.6f. \n', toc, samplesAtFlush/rawSampleRate)
+            frameIndex = 1;
+            tic;
+            y = channelizer(read(dataBufferFIFO,samplesAtFlush));
+            for i = 1:nChannels
+                data = [bufferTimeStamp4Sending; y(:,i)];
+                udpSenderSend(udps{i}, data);
+            end
+            time2Channelize = toc;
+            fprintf('Time required to channelize: %6.6f \n', time2Channelize)
+        end
+    else
+        pause(rawFrameTime/2);
+    end
+end
 
 end
